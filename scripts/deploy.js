@@ -1,6 +1,6 @@
 const hre = require('hardhat');
 
-function parseUnitsSafe(value, unit = 'ether') {
+function parseUnitsSafe(value, unit = 'ethe') {
   // Support both ethers v6 (hre.ethers.parseUnits) and v5 (hre.ethers.utils.parseUnits)
   if (!value) value = '0.01';
   try {

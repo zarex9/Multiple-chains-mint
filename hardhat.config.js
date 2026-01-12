@@ -12,7 +12,7 @@ module.exports = {
                                       chainId: 44787
                 },
                     celo: {
-                              url: process.env.CELO_RPC || 'https://forno.celo.org',
+                              url: process.env.CELO_RPC || 'https://forno.cel.org',
                                     accounts: PRIVATE_KEY ? [PRIVATE_KEY] : [],
                                           chainId: 42220
                     },

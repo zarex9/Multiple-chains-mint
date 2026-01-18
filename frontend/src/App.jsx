@@ -1,63 +1,137 @@
 import React, { useState } from 'react';
 import { ethers } from 'ethers';
-import WalletConnectProvider from "@walletconnect/ethereum-provider";
+import WalletConnectProvider from '@walletconnect/ethereum-provider';
 
+/* -----------------------------
+   Contract ABI
+-------------------------------- */
 const CONTRACT_ABI = [
   'function publicMint(string uri) payable returns (uint256)',
-  'function ownerMint(address to, string uri) external returns (uint256)'
+  'function ownerMint(address to, string uri) returns (uint256)'
 ];
 
-const NETWORKS = {
-  celo: { chainId: 42220, name: 'Celo', rpc: process.env.REACT_APP_CELO_RPC },
-  arbitrum: { chainId: 42161, name: 'Arbitrum', rpc: process.env.REACT_APP_ARB_RPC },
-  base: { chainId: 8453, name: 'Base', rpc: process.env.REACT_APP_BASE_RPC }
+/* -----------------------------
+   Network Config
+-------------------------------- */
+type NetworkKey = 'celo' | 'arbitrum' | 'base';
+
+const NETWORKS: Record<
+  NetworkKey,
+  { chainId: number; name: string; rpc?: string }
+> = {
+  celo: {
+    chainId: 42220,
+    name: 'Celo',
+    rpc: process.env.REACT_APP_CELO_RPC
+  },
+  arbitrum: {
+    chainId: 42161,
+    name: 'Arbitrum',
+    rpc: process.env.REACT_APP_ARB_RPC
+  },
+  base: {
+    chainId: 8453,
+    name: 'Base',
+    rpc: process.env.REACT_APP_BASE_RPC
+  }
 };
 
 export default function App() {
-  const [signer, setSigner] = useState(null);
-  const [network, setNetwork] = useState('celo');
+  const [signer, setSigner] = useState<ethers.Signer | null>(null);
+  const [provider, setProvider] = useState<ethers.BrowserProvider | null>(null);
+  const [network, setNetwork] = useState<NetworkKey>('celo');
   const [contractAddr, setContractAddr] = useState('');
   const [uri, setUri] = useState('https://ipfs.io/ipfs/<CID>');
   const [price, setPrice] = useState('0.01');
+  const [loading, setLoading] = useState(false);
 
+  /* -----------------------------
+     Connect Wallet
+  -------------------------------- */
   async function connectWallet() {
-    const nw = NETWORKS[network];
+    try {
+      const nw = NETWORKS[network];
 
-    const wc = await WalletConnectProvider.init({
-      projectId: process.env.REACT_APP_WALLETCONNECT_ID,
-      chains: [nw.chainId],
-      optionalChains: [nw.chainId],
-      rpcMap: { [nw.chainId]: nw.rpc }
-    });
+      if (!nw.rpc) {
+        alert(`RPC not configured for ${nw.name}`);
+        return;
+      }
 
-    await wc.connect();
-    const provider = new ethers.BrowserProvider(wc);
-    const s = await provider.getSigner();
-    setSigner(s);
+      const wcProvider = await WalletConnectProvider.init({
+        projectId: process.env.REACT_APP_WALLETCONNECT_ID!,
+        chains: [nw.chainId],
+        rpcMap: { [nw.chainId]: nw.rpc }
+      });
+
+      await wcProvider.connect();
+
+      const browserProvider = new ethers.BrowserProvider(wcProvider);
+      const signer = await browserProvider.getSigner();
+
+      setProvider(browserProvider);
+      setSigner(signer);
+
+      alert(`Connected to ${nw.name}`);
+    } catch (err) {
+      console.error(err);
+      alert('Wallet connection failed');
+    }
   }
 
+  /* -----------------------------
+     Mint NFT
+  -------------------------------- */
   async function mint() {
-    if (!signer) return alert('Connect wallet first');
-    if (!contractAddr) return alert('Enter contract address');
+    if (!signer) {
+      alert('Connect wallet first');
+      return;
+    }
 
-    const priceWei = ethers.parseEther(price);
-    const contract = new ethers.Contract(contractAddr, CONTRACT_ABI, signer);
+    if (!ethers.isAddress(contractAddr)) {
+      alert('Invalid contract address');
+      return;
+    }
 
-    const tx = await contract.publicMint(uri, { value: priceWei });
-    await tx.wait();
+    try {
+      setLoading(true);
 
-    alert('Minted successfully! Tx: ' + tx.hash);
+      const priceWei = ethers.parseEther(price);
+      const contract = new ethers.Contract(
+        contractAddr,
+        CONTRACT_ABI,
+        signer
+      );
+
+      const tx = await contract.publicMint(uri, {
+        value: priceWei
+      });
+
+      await tx.wait();
+
+      alert(`Mint successful!\nTx Hash: ${tx.hash}`);
+    } catch (err: any) {
+      console.error(err);
+      alert(err?.reason || err?.message || 'Mint failed');
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
-    <div style={{ padding: 20 }}>
-      <h2>MultiChain NFT Minter (Celo / Arbitrum / Base)</h2>
+    <div style={{ padding: 20, maxWidth: 480 }}>
+      <h2>Multi-Chain NFT Minter</h2>
+      <p>Celo • Arbitrum • Base</p>
 
       <button onClick={connectWallet}>Connect Wallet</button>
 
+      <hr />
+
       <div>
-        <label>Network:</label>
-        <select value={network} onChange={e => setNetwork(e.target.value)}>
+        <label>Network</label>
+        <select
+          value={network}
+          onChange={e => setNetwork(e.target.value as NetworkKey)}
+        >
           <option value="celo">Celo</option>
           <option value="arbitrum">Arbitrum</option>
           <option value="base">Base</option>
@@ -65,21 +139,33 @@ export default function App() {
       </div>
 
       <div>
-        <label>Contract:</label>
-        <input value={contractAddr} onChange={e => setContractAddr(e.target.value)} />
+        <label>Contract Address</label>
+        <input
+          value={contractAddr}
+          onChange={e => setContractAddr(e.target.value)}
+          placeholder="0x..."
+        />
       </div>
 
       <div>
-        <label>Token URI (IPFS):</label>
-        <input value={uri} onChange={e => setUri(e.target.value)} />
+        <label>Token URI (IPFS)</label>
+        <input
+          value={uri}
+          onChange={e => setUri(e.target.value)}
+        />
       </div>
 
       <div>
-        <label>Mint Price:</label>
-        <input value={price} onChange={e => setPrice(e.target.value)} />
+        <label>Mint Price (ETH)</label>
+        <input
+          value={price}
+          onChange={e => setPrice(e.target.value)}
+        />
       </div>
 
-      <button onClick={mint}>Public Mint</button>
+      <button onClick={mint} disabled={loading}>
+        {loading ? 'Minting...' : 'Public Mint'}
+      </button>
     </div>
   );
 }

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { ethers } from 'ethers';
 import WalletConnectProvider from '@walletconnect/ethereum-provider';
 import SocialAuthPanel from './SocialAuthPanel';
+import DailyGMBase from './DailyGMBase';
 
 /* -----------------------------
    Contract ABI
@@ -181,19 +182,8 @@ export default function App() {
       )}
 
       <SocialAuthPanel mintData={mintData} />
-      </div>
 
-      <div>
-        <label>Mint Price (ETH)</label>
-        <input
-          value={price}
-          onChange={e => setPrice(e.target.value)}
-        />
-      </div>
-
-      <button onClick={mint} disabled={loading}>
-        {loading ? 'Minting...' : 'Public Mint'}
-      </button>
+      <DailyGMBase signer={signer} network={network} contractAddr={contractAddr} />
     </div>
   );
 }

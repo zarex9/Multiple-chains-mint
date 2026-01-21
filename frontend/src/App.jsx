@@ -37,9 +37,9 @@ const NETWORKS: Record<
 };
 
 export default function App() {
-  const [signer, setSigner] = useState<ethers.Signer | null>(null);
-  const [provider, setProvider] = useState<ethers.BrowserProvider | null>(null);
-  const [network, setNetwork] = useState<NetworkKey>('celo');
+  const [signer, setSigner] = useState(null);
+  const [provider, setProvider] = useState(null);
+  const [network, setNetwork] = useState('celo');
   const [contractAddr, setContractAddr] = useState('');
   const [uri, setUri] = useState('https://ipfs.io/ipfs/<CID>');
   const [price, setPrice] = useState('0.01');

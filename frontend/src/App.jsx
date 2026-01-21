@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { ethers } from 'ethers';
 import WalletConnectProvider from '@walletconnect/ethereum-provider';
+import SocialAuthPanel from './SocialAuthPanel';
 
 /* -----------------------------
    Contract ABI
@@ -43,6 +44,7 @@ export default function App() {
   const [contractAddr, setContractAddr] = useState('');
   const [uri, setUri] = useState('https://ipfs.io/ipfs/<CID>');
   const [price, setPrice] = useState('0.01');
+  const [mintData, setMintData] = useState(null);
   const [loading, setLoading] = useState(false);
 
   /* -----------------------------
@@ -104,7 +106,18 @@ export default function App() {
 
       const tx = await contract.publicMint(uri, {
         value: priceWei
-      });
+      const receipt = await tx.wait();
+
+      const minted = {
+        network: NETWORKS[network].name,
+        contractAddr,
+        uri,
+        txHash: tx.hash,
+        blockNumber: receipt.blockNumber,
+        timestamp: new Date().toISOString()
+      };
+
+      setMintData(minted
 
       await tx.wait();
 
@@ -153,6 +166,21 @@ export default function App() {
           value={uri}
           onChange={e => setUri(e.target.value)}
         />
+
+      {mintData && (
+        <div style={{
+          padding: '10px',
+          marginTop: '15px',
+          backgroundColor: '#e8f5e9',
+          borderRadius: '4px',
+          fontSize: '12px'
+        }}>
+          <strong>✓ Last Mint:</strong>
+          <div>{mintData.txHash.slice(0, 10)}...{mintData.txHash.slice(-8)}</div>
+        </div>
+      )}
+
+      <SocialAuthPanel mintData={mintData} />
       </div>
 
       <div>
